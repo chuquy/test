@@ -1,0 +1,27 @@
+version: 0.2
+
+phases:
+  install:
+    runtime-versions:
+      python: 3.11
+    commands:
+      - echo "Installing AWS CLI"
+      - python -m pip install awscli
+
+  pre_build:
+    commands:
+      - echo "Setting up AWS credentials"
+      - aws configure set aws_access_key_id AKIAZOPJ6IWPDKKJSK7J
+      - aws configure set aws_secret_access_key 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
+      - aws configure set default.region us-east-1
+
+  build:
+    commands:
+      - echo "Building and packaging the API"
+      - aws lambda get-function --function-name welcomeToLambda --query 'Code.Location' --output text > lambda_function.zip
+      - aws s3 cp lambda_function.zip s3://bucketapirest/LambdaFunctions/
+
+#artifacts:
+#  files:
+#    - lambda_function.zip
+#  discard-paths: yes

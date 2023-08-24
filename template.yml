@@ -1,0 +1,88 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Transform: AWS::Serverless-2016-10-31
+Description: A sample SAM template for deploying Lambda functions.
+
+Resources:
+  # Detalles sobre la función Lambda myDateTimeFunction
+  myDateTimeFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: myDateTimeFunction.handler
+      Runtime: nodejs18.x
+      # Indica que su myDateTimeFunction se publica en un alias llamado "live".
+      AutoPublishAlias: live
+      # Otorga a esta función permiso para llamar a lambda:InvokeFunction
+      Policies:
+        - Version: "2012-10-17"
+          Statement:
+            - Effect: "Allow"
+              Action:
+                - "lambda:InvokeFunction"
+              Resource: "*"
+      DeploymentPreference:
+        # Especifica la configuración de implementación.
+        Type: Linear10PercentEvery1Minute
+        # Especifica funciones de Lambda para enlaces de ciclo de vida de implementación
+        Hooks:
+          PreTraffic: !Ref beforeAllowTraffic
+          PostTraffic: !Ref afterAllowTraffic
+
+  # Funcion de validacion BeforeAllowTraffic.
+  beforeAllowTraffic:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: beforeAllowTraffic.handler
+      Policies:
+        - Version: "2012-10-17"
+          # Otorga a esta función permiso para llamar a codedeploy:PutLifecycleEventHookExecutionStatus
+          Statement:
+            - Effect: "Allow"
+              Action:
+                - "codedeploy:PutLifecycleEventHookExecutionStatus"
+              Resource: !Sub "arn:aws:codedeploy:${AWS::Region}:${AWS::AccountId}:deploymentgroup:${ServerlessDeploymentApplication}/*"
+        - Version: "2012-10-17"
+          # Otorga a esta función permiso para llamar a lambda:InvokeFunction
+          Statement:
+            - Effect: "Allow"
+              Action:
+                - "lambda:InvokeFunction"
+              Resource: !Ref myDateTimeFunction.Version
+      Runtime: nodejs18.x
+      # Especifica el nombre de la función de enlace de Lambda
+      FunctionName: "CodeDeployHook_beforeAllowTraffic"
+      DeploymentPreference:
+        Enabled: false
+      Timeout: 5
+      Environment:
+        Variables:
+          NewVersion: !Ref myDateTimeFunction.Version
+
+  # Funcion de validacion AfterAllowTraffic
+  afterAllowTraffic:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: afterAllowTraffic.handler
+      Policies:
+        - Version: "2012-10-17"
+          Statement:
+            # Otorga a esta función permiso para llamar a codedeploy:PutLifecycleEventHookExecutionStatus
+            - Effect: "Allow"
+              Action:
+                - "codedeploy:PutLifecycleEventHookExecutionStatus"
+              Resource: !Sub "arn:aws:codedeploy:${AWS::Region}:${AWS::AccountId}:deploymentgroup:${ServerlessDeploymentApplication}/*"
+        - Version: "2012-10-17"
+          Statement:
+            # Otorga a esta función permiso para llamar a lambda:InvokeFunction
+            - Effect: "Allow"
+              Action:
+                - "lambda:InvokeFunction"
+              Resource: !Ref myDateTimeFunction.Version
+      Runtime: nodejs18.x
+      # Especifica el nombre de la función de enlace de Lambda.
+      FunctionName: "CodeDeployHook_afterAllowTraffic"
+      DeploymentPreference:
+        Enabled: false
+      Timeout: 5
+      Environment:
+        Variables:
+          NewVersion: !Ref myDateTimeFunction.Version
